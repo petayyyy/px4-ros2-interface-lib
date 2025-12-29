@@ -20,8 +20,6 @@ def message_fields_str_for_message_hash(topic_type: str, msgs_dir: str) -> str:
     and recursively processes nested types to generate a string representation of all fields.
     """
     filename = find_file_in_subfolders(f"{msgs_dir}/", f"{topic_type}.msg")
-    if filename is None:
-        raise FileNotFoundError(f"Message definition file {topic_type}.msg not found in {msgs_dir}")
     try:
         with open(filename, 'r') as file:
             text = file.read()
@@ -151,18 +149,12 @@ def main(repo1: str, repo2: str, verbose: bool = False):
 
     # Find mismatches
     incompatible_types = []
-    missing_types = []
     for msg_type in messages_types:
-        try:
-            if message_hash(msg_type, repo1) != message_hash(msg_type, repo2):
-                incompatible_types.append(msg_type)
-        except FileNotFoundError as e:
-            print(f"Error: {e}")
-            missing_types.append(msg_type)
+        if message_hash(msg_type, repo1) != message_hash(msg_type, repo2):
+            incompatible_types.append(msg_type)
 
     # Print result
-    success = not incompatible_types and not missing_types
-    if success:
+    if not incompatible_types:
         print("OK! Messages are compatible.")
         sys.exit(0)
     else:
@@ -173,13 +165,9 @@ def main(repo1: str, repo2: str, verbose: bool = False):
                 compare_files(file1, file2)
             print("Note: The printed diff includes all content differences. "
                   "The computed check is less sensitive to formatting and comments.", end='\n\n')
-        print("FAILED!", end=' ')
-        if incompatible_types:
-            print("Some files differ:")
-            print("\n".join(f" - {msg_type}.msg" for msg_type in incompatible_types))
-        if missing_types:
-            print("The following message types were not found in one of the repositories:")
-            print("\n".join(f" - {msg_type}.msg" for msg_type in missing_types))
+        print("FAILED! Some files differ:")
+        for msg_type in incompatible_types:
+            print(f" - {msg_type}.msg")
         sys.exit(1)
 
 

@@ -18,42 +18,29 @@ namespace px4_ros2
 {
 
 ModeExecutorBase::ModeExecutorBase(
-  const ModeExecutorBase::Settings & settings,
-  ModeBase & owned_mode)
-: _node(owned_mode.node()), _topic_namespace_prefix(owned_mode.topicNamespacePrefix()), _settings(
-    settings), _owned_mode(
+  rclcpp::Node & node, const ModeExecutorBase::Settings & settings,
+  ModeBase & owned_mode, const std::string & topic_namespace_prefix)
+: _node(node), _topic_namespace_prefix(topic_namespace_prefix), _settings(settings), _owned_mode(
     owned_mode),
-  _registration(std::make_shared<Registration>(
-      owned_mode.node(),
-      owned_mode.topicNamespacePrefix())),
-  _current_scheduled_mode(owned_mode.node(), owned_mode.topicNamespacePrefix()),
-  _config_overrides(owned_mode.node(), owned_mode.topicNamespacePrefix())
+  _registration(std::make_shared<Registration>(node, topic_namespace_prefix)),
+  _current_scheduled_mode(node, topic_namespace_prefix),
+  _config_overrides(node, topic_namespace_prefix)
 {
-  if (owned_mode._settings.replace_internal_mode != ModeBase::kModeIDInvalid) {
-    throw Exception(
-            "A mode executor cannot be used in combination with a mode that replaces an internal mode. See https://github.com/PX4/PX4-Autopilot/issues/25707");
-  }
-  // Use a globally shared vehicle status instance for consistent callback ordering when using multiple modes/executors
-  _vehicle_status_sub_cb = SharedSubscription<px4_msgs::msg::VehicleStatus>::create(
-    _node, _topic_namespace_prefix + "fmu/out/vehicle_status" +
-    px4_ros2::getMessageNameVersion<px4_msgs::msg::VehicleStatus>(),
-    [this](
-      const px4_msgs::msg::VehicleStatus::UniquePtr & msg) {
+  _vehicle_status_sub = _node.create_subscription<px4_msgs::msg::VehicleStatus>(
+    topic_namespace_prefix + "fmu/out/vehicle_status" +
+    px4_ros2::getMessageNameVersion<px4_msgs::msg::VehicleStatus>(), rclcpp::QoS(
+      1).best_effort(),
+    [this](px4_msgs::msg::VehicleStatus::UniquePtr msg) {
       if (_registration->registered()) {
         vehicleStatusUpdated(msg);
       }
     });
 
   _vehicle_command_pub = _node.create_publisher<px4_msgs::msg::VehicleCommand>(
-    _topic_namespace_prefix + "fmu/in/vehicle_command_mode_executor" +
+    topic_namespace_prefix + "fmu/in/vehicle_command_mode_executor" +
     px4_ros2::getMessageNameVersion<px4_msgs::msg::VehicleCommand>(),
     1);
 
-}
-
-// NOLINTNEXTLINE Cannot use default constructor due to incomplete type VehicleStatusSingletonToken
-ModeExecutorBase::~ModeExecutorBase()
-{
 }
 
 bool ModeExecutorBase::doRegister()
@@ -66,8 +53,8 @@ bool ModeExecutorBase::doRegister()
 
   assert(!_registration->registered());
 
-  if (!_skip_message_compatibility_check && (!waitForFMU(node(), 15s, _topic_namespace_prefix) ||
-    !_owned_mode.defaultMessageCompatibilityCheck()))
+  if (!waitForFMU(node(), 15s) ||
+    !messageCompatibilityCheck(node(), {ALL_PX4_ROS2_MESSAGES}, _topic_namespace_prefix))
   {
     return false;
   }
@@ -122,7 +109,6 @@ int ModeExecutorBase::id() const
   return _registration->modeExecutorId();
 }
 
-// NOLINTNEXTLINE(google-default-arguments)
 Result ModeExecutorBase::sendCommandSync(
   uint32_t command, float param1, float param2, float param3, float param4,
   float param5, float param6, float param7)
@@ -427,10 +413,7 @@ bool ModeExecutorBase::deferFailsafesSync(bool enabled, int timeout_s)
     _prev_failsafe_defer_state == px4_msgs::msg::VehicleStatus::FAILSAFE_DEFER_STATE_DISABLED)
   {
     rclcpp::WaitSet wait_set;
-    const auto vehicle_status_sub = SharedSubscription<px4_msgs::msg::VehicleStatus>::instance(
-      _node, _topic_namespace_prefix + "fmu/out/vehicle_status" +
-      px4_ros2::getMessageNameVersion<px4_msgs::msg::VehicleStatus>()).getSubscription();
-    wait_set.add_subscription(vehicle_status_sub);
+    wait_set.add_subscription(_vehicle_status_sub);
 
     bool got_message = false;
     auto start_time = _node.now();
@@ -450,7 +433,7 @@ bool ModeExecutorBase::deferFailsafesSync(bool enabled, int timeout_s)
         px4_msgs::msg::VehicleStatus msg;
         rclcpp::MessageInfo info;
 
-        if (vehicle_status_sub->take(msg, info)) {
+        if (_vehicle_status_sub->take(msg, info)) {
           if (msg.failsafe_defer_state !=
             px4_msgs::msg::VehicleStatus::FAILSAFE_DEFER_STATE_DISABLED)
           {
@@ -466,25 +449,12 @@ bool ModeExecutorBase::deferFailsafesSync(bool enabled, int timeout_s)
       }
     }
 
-    wait_set.remove_subscription(vehicle_status_sub);
+    wait_set.remove_subscription(_vehicle_status_sub);
 
     return got_message;
   }
 
   return true;
-}
-
-bool ModeExecutorBase::controlAutoSetHome(bool enabled)
-{
-  _config_overrides.controlAutoSetHome(enabled);
-  return true;
-}
-
-void ModeExecutorBase::overrideRegistration(const std::shared_ptr<Registration> & registration)
-{
-  assert(!_registration->registered());
-  _owned_mode.overrideRegistration(registration);
-  _registration = registration;
 }
 
 ModeExecutorBase::ScheduledMode::ScheduledMode(

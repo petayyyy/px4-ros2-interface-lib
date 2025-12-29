@@ -91,7 +91,7 @@ template<typename Type>
 Eigen::Matrix<Type, 3, 1> quaternionToEulerRpy(const Eigen::Quaternion<Type> & q)
 {
   Eigen::Matrix<Type, 3, 1> angles;
-  const Eigen::Matrix<Type, 3, 3> dcm = q.toRotationMatrix();
+  Eigen::Matrix<Type, 3, 3> dcm = q.toRotationMatrix();
 
   angles.y() = asin(-dcm.coeff(2, 0));
 
@@ -147,19 +147,29 @@ Eigen::Quaternion<Type> eulerRpyToQuaternion(const Type roll, const Type pitch, 
 template<typename Type>
 Type quaternionToRoll(const Eigen::Quaternion<Type> & q)
 {
-  return quaternionToEulerRpy(q)[0];
+  Type x = q.x();
+  Type y = q.y();
+  Type z = q.z();
+  Type w = q.w();
+
+  return std::atan2(2.0 * (w * x + y * z), w * w - x * x - y * y + z * z);
 }
 
 /**
  * @brief Convert quaternion to pitch angle in extrinsic RPY order (intrinsic YPR)
  *
  * @param q The input quaternion
- * @return Pitch angle corresponding to the given quaternion in range [-pi/2, pi/2]
+ * @return Pitch angle corresponding to the given quaternion in range [-pi, pi]
 */
 template<typename Type>
 Type quaternionToPitch(const Eigen::Quaternion<Type> & q)
 {
-  return quaternionToEulerRpy(q)[1];
+  Type x = q.x();
+  Type y = q.y();
+  Type z = q.z();
+  Type w = q.w();
+
+  return std::atan2(2.0 * (w * y - z * x), 1.0 - 2.0 * (x * x + y * y));
 }
 
 /**
@@ -171,7 +181,12 @@ Type quaternionToPitch(const Eigen::Quaternion<Type> & q)
 template<typename Type>
 Type quaternionToYaw(const Eigen::Quaternion<Type> & q)
 {
-  return quaternionToEulerRpy(q)[2];
+  Type x = q.x();
+  Type y = q.y();
+  Type z = q.z();
+  Type w = q.w();
+
+  return std::atan2(2.0 * (x * y + w * z), w * w + x * x - y * y - z * z);
 }
 
 /** @}*/

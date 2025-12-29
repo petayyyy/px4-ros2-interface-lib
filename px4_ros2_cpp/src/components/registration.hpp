@@ -9,7 +9,6 @@
 #include <string>
 
 #include <rclcpp/rclcpp.hpp>
-#include <rclcpp/context.hpp>
 #include <px4_msgs/msg/register_ext_component_request.hpp>
 #include <px4_msgs/msg/register_ext_component_reply.hpp>
 #include <px4_msgs/msg/unregister_ext_component.hpp>
@@ -26,14 +25,16 @@ struct RegistrationSettings
   bool enable_replace_internal_mode{false};
   px4_ros2::ModeBase::ModeID replace_internal_mode{};
   bool activate_mode_immediately{false};
-  bool user_selectable{true};
 };
 
 class Registration
 {
 public:
   explicit Registration(rclcpp::Node & node, const std::string & topic_namespace_prefix = "");
-  virtual ~Registration();
+  virtual ~Registration()
+  {
+    doUnregister();
+  }
 
   virtual bool doRegister(const RegistrationSettings & settings);
   virtual void doUnregister();
@@ -52,7 +53,7 @@ public:
 protected:
   void setRegistrationDetails(
     int arming_check_id, px4_ros2::ModeBase::ModeID mode_id,
-    int mode_executor_id, const std::string & name);
+    int mode_executor_id);
 
 private:
   rclcpp::Subscription<px4_msgs::msg::RegisterExtComponentReply>::SharedPtr
@@ -64,8 +65,4 @@ private:
   bool _registered{false};
   px4_msgs::msg::UnregisterExtComponent _unregister_ext_component{};
   rclcpp::Node & _node;
-#if HAS_RCLCPP_PRE_SHUTDOWN
-  rclcpp::PreShutdownCallbackHandle _shutdown_callback_handle{};
-  bool _shutdown_callback_registered{false};
-#endif
 };

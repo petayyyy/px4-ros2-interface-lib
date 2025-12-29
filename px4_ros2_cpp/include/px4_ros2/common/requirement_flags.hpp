@@ -41,7 +41,7 @@ struct RequirementFlags
     local_alt |= other.local_alt;
     local_position |= other.local_position;
     local_position_relaxed |= other.local_position_relaxed;
-    global_position |= other.global_position;
+    // global_position |= other.global_position;
     mission |= other.mission;
     home_position |= other.home_position;
     prevent_arming |= other.prevent_arming;

@@ -17,7 +17,7 @@ class FwAttModeTest : public px4_ros2::ModeBase
 {
 public:
   explicit FwAttModeTest(rclcpp::Node & node)
-  : ModeBase(node, Settings(kName).preventArming(true))
+  : ModeBase(node, kName)
   {
     _att_setpoint = std::make_shared<px4_ros2::AttitudeSetpointType>(*this);
 

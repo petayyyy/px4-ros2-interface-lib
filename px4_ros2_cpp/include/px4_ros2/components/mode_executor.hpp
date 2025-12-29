@@ -13,7 +13,6 @@
 #include <px4_msgs/msg/vehicle_command.hpp>
 #include <px4_msgs/msg/vehicle_command_ack.hpp>
 #include <px4_msgs/msg/mode_completed.hpp>
-#include <px4_ros2/components/shared_subscription.hpp>
 
 #include <functional>
 
@@ -42,12 +41,6 @@ public:
       ActivateImmediately, ///< Activate the mode and executor immediately after registration. Only use this for fully autonomous executors that also arm the vehicle
     };
     Activation activation{Activation::ActivateOnlyWhenArmed};
-
-    Settings & activate(Activation activation_option)
-    {
-      activation = activation_option;
-      return *this;
-    }
   };
 
   enum class DeactivateReason
@@ -56,9 +49,11 @@ public:
     Other
   };
 
-  ModeExecutorBase(const Settings & settings, ModeBase & owned_mode);
+  ModeExecutorBase(
+    rclcpp::Node & node, const Settings & settings, ModeBase & owned_mode,
+    const std::string & topic_namespace_prefix = "");
   ModeExecutorBase(const ModeExecutorBase &) = delete;
-  virtual ~ModeExecutorBase();
+  virtual ~ModeExecutorBase() = default;
 
   /**
    * Register the mode executor. Call this once on startup. This is a blocking method.
@@ -86,8 +81,7 @@ public:
   /**
   * Send command and wait for ack/nack
   */
-  // NOLINTNEXTLINE(google-default-arguments)
-  virtual Result sendCommandSync(
+  Result sendCommandSync(
     uint32_t command, float param1 = NAN, float param2 = NAN, float param3 = NAN,
     float param4 = NAN,
     float param5 = NAN, float param6 = NAN, float param7 = NAN);
@@ -103,12 +97,6 @@ public:
     ModeBase::ModeID mode_id, const CompletedCallback & on_completed,
     bool forced = false);
 
-  /**
-   * @brief Trigger a takeoff
-   * @param on_completed callback to execute when the takeoff is completed
-   * @param altitude optional altitude AMSL [m]
-   * @param heading optional heading [rad] from North
-   */
   void takeoff(const CompletedCallback & on_completed, float altitude = NAN, float heading = NAN);
   void land(const CompletedCallback & on_completed);
   void rtl(const CompletedCallback & on_completed);
@@ -143,12 +131,6 @@ public:
    * @return true on success
    */
   bool deferFailsafesSync(bool enabled, int timeout_s = 0);
-
-  bool controlAutoSetHome(bool enabled);
-
-protected:
-  void setSkipMessageCompatibilityCheck() {_skip_message_compatibility_check = true;}
-  void overrideRegistration(const std::shared_ptr<Registration> & registration);
 
 private:
   class ScheduledMode
@@ -203,14 +185,12 @@ private:
   rclcpp::Node & _node;
   const std::string _topic_namespace_prefix;
   const Settings _settings;
-  bool _skip_message_compatibility_check{false};
   ModeBase & _owned_mode;
 
   std::shared_ptr<Registration> _registration;
 
+  rclcpp::Subscription<px4_msgs::msg::VehicleStatus>::SharedPtr _vehicle_status_sub;
   rclcpp::Publisher<px4_msgs::msg::VehicleCommand>::SharedPtr _vehicle_command_pub;
-
-  SharedSubscriptionCallbackInstance _vehicle_status_sub_cb;
 
   ScheduledMode _current_scheduled_mode;
   WaitForVehicleStatusCondition _current_wait_vehicle_status;

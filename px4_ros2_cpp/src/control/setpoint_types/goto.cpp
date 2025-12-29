@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  ****************************************************************************/
 
-#include <px4_ros2/control/setpoint_types/multicopter/goto.hpp>
+#include <px4_ros2/control/setpoint_types/goto.hpp>
 #include <px4_ros2/utils/message_version.hpp>
 
 
 namespace px4_ros2
 {
 
-MulticopterGotoSetpointType::MulticopterGotoSetpointType(Context & context)
+GotoSetpointType::GotoSetpointType(Context & context)
 : SetpointBase(context), _node(context.node())
 {
   _goto_setpoint_pub =
@@ -20,7 +20,7 @@ MulticopterGotoSetpointType::MulticopterGotoSetpointType(Context & context)
     1);
 }
 
-void MulticopterGotoSetpointType::update(
+void GotoSetpointType::update(
   const Eigen::Vector3f & position,
   const std::optional<float> & heading,
   const std::optional<float> & max_horizontal_speed,
@@ -54,7 +54,7 @@ void MulticopterGotoSetpointType::update(
   _goto_setpoint_pub->publish(sp);
 }
 
-SetpointBase::Configuration MulticopterGotoSetpointType::getConfiguration()
+SetpointBase::Configuration GotoSetpointType::getConfiguration()
 {
   Configuration config{};
   config.control_allocation_enabled = true;
@@ -68,16 +68,16 @@ SetpointBase::Configuration MulticopterGotoSetpointType::getConfiguration()
   return config;
 }
 
-MulticopterGotoGlobalSetpointType::MulticopterGotoGlobalSetpointType(Context & context)
+GotoGlobalSetpointType::GotoGlobalSetpointType(Context & context)
 : _node(context.node()), _map_projection(std::make_unique<MapProjection>(context)),
-  _goto_setpoint(std::make_shared<MulticopterGotoSetpointType>(context))
+  _goto_setpoint(std::make_shared<GotoSetpointType>(context))
 {
   RequirementFlags requirements{};
   requirements.global_position = true;
   context.setRequirement(requirements);
 }
 
-void MulticopterGotoGlobalSetpointType::update(
+void GotoGlobalSetpointType::update(
   const Eigen::Vector3d & global_position,
   const std::optional<float> & heading,
   const std::optional<float> & max_horizontal_speed,
@@ -91,7 +91,7 @@ void MulticopterGotoGlobalSetpointType::update(
     return;
   }
 
-  const Eigen::Vector3f local_position = _map_projection->globalToLocal(global_position);
+  Eigen::Vector3f local_position = _map_projection->globalToLocal(global_position);
   _goto_setpoint->update(
     local_position, heading, max_horizontal_speed, max_vertical_speed,
     max_heading_rate);

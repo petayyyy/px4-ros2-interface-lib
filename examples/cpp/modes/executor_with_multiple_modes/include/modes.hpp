@@ -22,7 +22,7 @@ class FlightModeTestStart : public px4_ros2::ModeBase
 {
 public:
   explicit FlightModeTestStart(rclcpp::Node & node)
-  : ModeBase(node, kNameFirst)
+  : ModeBase(node, Settings{kNameFirst, false})
   {
     _trajectory_setpoint = std::make_shared<px4_ros2::TrajectorySetpointType>(*this);
   }
@@ -59,7 +59,7 @@ class FlightModeTestSegment : public px4_ros2::ModeBase
 {
 public:
   explicit FlightModeTestSegment(rclcpp::Node & node)
-  : ModeBase(node, kNameSecond)
+  : ModeBase(node, Settings{kNameSecond, false})
   {
     _rates_setpoint = std::make_shared<px4_ros2::RatesSetpointType>(*this);
   }
@@ -96,7 +96,7 @@ class FlightModeTestEnd : public px4_ros2::ModeBase
 {
 public:
   explicit FlightModeTestEnd(rclcpp::Node & node)
-  : ModeBase(node, kNameThird)
+  : ModeBase(node, Settings{kNameThird, false})
   {
     _trajectory_setpoint = std::make_shared<px4_ros2::TrajectorySetpointType>(*this);
   }

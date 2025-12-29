@@ -49,18 +49,7 @@ HealthAndArmingChecks::HealthAndArmingChecks(
 
         reply.timestamp = 0; // Let PX4 set the timestamp
         _arming_check_reply_pub->publish(reply);
-
-        // Check if our registration id is still valid. If not, we still send the reply,
-        // as it might be flagged as unresponsive, but we don't update the timer check.
-        // The first request might not have the bit set yet.
-        if (_first_request || (msg->valid_registrations_mask & (1U << reply.registration_id))) {
-          _check_triggered = true;
-        } else {
-          RCLCPP_ERROR_ONCE(
-            _node.get_logger(), "Registration id %i is flagged as invalid (only printed once)",
-            reply.registration_id);
-        }
-        _first_request = false;
+        _check_triggered = true;
 
       } else {
         RCLCPP_DEBUG(_node.get_logger(), "...not registered yet");
@@ -83,7 +72,6 @@ bool HealthAndArmingChecks::doRegister(const std::string & name)
   RegistrationSettings settings{};
   settings.name = name;
   settings.register_arming_check = true;
-  _first_request = true;
   return _registration->doRegister(settings);
 }
 
@@ -92,7 +80,7 @@ void HealthAndArmingChecks::watchdogTimerUpdate()
   if (_registration->registered()) {
     if (!_check_triggered && _shutdown_on_timeout) {
       rclcpp::shutdown();
-      throw Exception(
+      throw std::runtime_error(
               "Timeout, no request received from FMU, exiting (this can happen on FMU reboots)");
     }
 

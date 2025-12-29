@@ -7,7 +7,6 @@
 #include "px4_ros2/components/message_compatibility_check.hpp"
 #include "px4_ros2/components/wait_for_fmu.hpp"
 #include "px4_ros2/utils/message_version.hpp"
-#include <px4_msgs/msg/vehicle_status.hpp>
 
 #include "registration.hpp"
 
@@ -29,15 +28,11 @@ ModeBase::ModeBase(
     },
     topic_namespace_prefix), _config_overrides(node, topic_namespace_prefix)
 {
-  if (_settings.prevent_arming) {
-    modeRequirements().prevent_arming = true;
-  }
-  // Use a globally shared vehicle status instance for consistent callback ordering when using multiple modes/executors
-  _vehicle_status_sub_cb = SharedSubscription<px4_msgs::msg::VehicleStatus>::create(
-    node, topic_namespace_prefix + "fmu/out/vehicle_status" +
-    px4_ros2::getMessageNameVersion<px4_msgs::msg::VehicleStatus>(),
-    [this](
-      const px4_msgs::msg::VehicleStatus::UniquePtr & msg) {
+  _vehicle_status_sub = node.create_subscription<px4_msgs::msg::VehicleStatus>(
+    topic_namespace_prefix + "fmu/out/vehicle_status" +
+    px4_ros2::getMessageNameVersion<px4_msgs::msg::VehicleStatus>(), rclcpp::QoS(
+      1).best_effort(),
+    [this](px4_msgs::msg::VehicleStatus::UniquePtr msg) {
       if (_registration->registered()) {
         vehicleStatusUpdated(msg);
       }
@@ -64,17 +59,12 @@ void ModeBase::overrideRegistration(const std::shared_ptr<Registration> & regist
   _registration = registration;
 }
 
-// NOLINTNEXTLINE Cannot use default constructor due to incomplete type VehicleStatusSingletonToken
-ModeBase::~ModeBase()
-{
-}
-
 bool ModeBase::doRegister()
 {
   assert(!_registration->registered());
 
-  if (!_skip_message_compatibility_check && (!waitForFMU(node(), 15s, topicNamespacePrefix()) ||
-    !defaultMessageCompatibilityCheck()))
+  if (!_skip_message_compatibility_check && (!waitForFMU(node(), 15s) ||
+    !messageCompatibilityCheck(node(), {ALL_PX4_ROS2_MESSAGES}, topicNamespacePrefix())))
   {
     return false;
   }
@@ -105,8 +95,6 @@ RegistrationSettings ModeBase::getRegistrationSettings() const
     settings.enable_replace_internal_mode = true;
     settings.replace_internal_mode = _settings.replace_internal_mode;
   }
-
-  settings.user_selectable = _settings.user_selectable;
 
   return settings;
 }
@@ -167,7 +155,7 @@ void ModeBase::setSetpointUpdateRate(float rate_hz)
 
 void ModeBase::unsubscribeVehicleStatus()
 {
-  _vehicle_status_sub_cb.reset();
+  _vehicle_status_sub.reset();
 }
 
 void ModeBase::vehicleStatusUpdated(
@@ -288,7 +276,9 @@ void ModeBase::setSetpointUpdateRateFromSetpointTypes()
   // Set update rate based on setpoint types
   float max_update_rate = -1.f;
   for (const auto & setpoint_type : _setpoint_types) {
-    max_update_rate = std::max(max_update_rate, setpoint_type->desiredUpdateRateHz());
+    if (setpoint_type->desiredUpdateRateHz() > max_update_rate) {
+      max_update_rate = setpoint_type->desiredUpdateRateHz();
+    }
   }
   if (max_update_rate > 0.f) {
     setSetpointUpdateRate(max_update_rate);
@@ -303,14 +293,6 @@ void ModeBase::activateSetpointType(SetpointBase & setpoint)
   setpoint.getConfiguration().fillControlMode(control_mode);
   control_mode.timestamp = 0; // Let PX4 set the timestamp
   _config_control_setpoints_pub->publish(control_mode);
-}
-
-bool ModeBase::defaultMessageCompatibilityCheck()
-{
-  // Call the compatibility check only once and store the result (in case there are multiple modes)
-  static const bool kResult = messageCompatibilityCheck(
-    node(), {ALL_PX4_ROS2_MESSAGES}, topicNamespacePrefix());
-  return kResult;
 }
 
 void ModeBase::addSetpointType(SetpointBase * setpoint)

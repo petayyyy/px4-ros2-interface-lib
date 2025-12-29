@@ -184,38 +184,38 @@ TEST(FrameConversion, attitudeEnuToNed) {
 }
 
 TEST(FrameConversion, positionNedToEnu) {
-  const Eigen::Vector3f v_ned(1.f, 2.f, 3.f);
-  const Eigen::Vector3f v_enu(2.f, 1.f, -3.f);
+  Eigen::Vector3f v_ned(1.f, 2.f, 3.f);
+  Eigen::Vector3f v_enu(2.f, 1.f, -3.f);
   vectorsApproxEqualTest(v_enu, px4_ros2::positionNedToEnu(v_ned));
 }
 
 TEST(FrameConversion, positionEnuToNed) {
-  const Eigen::Vector3f v_enu(1.f, 2.f, 3.f);
-  const Eigen::Vector3f v_ned(2.f, 1.f, -3.f);
+  Eigen::Vector3f v_enu(1.f, 2.f, 3.f);
+  Eigen::Vector3f v_ned(2.f, 1.f, -3.f);
   vectorsApproxEqualTest(v_ned, px4_ros2::positionEnuToNed(v_enu));
 }
 
 TEST(FrameConversion, frdToFlu) {
-  const Eigen::Vector3f v_frd(1.f, 2.f, 3.f);
-  const Eigen::Vector3f v_flu(1.f, -2.f, -3.f);
+  Eigen::Vector3f v_frd(1.f, 2.f, 3.f);
+  Eigen::Vector3f v_flu(1.f, -2.f, -3.f);
   vectorsApproxEqualTest(v_flu, px4_ros2::frdToFlu(v_frd));
 }
 
 TEST(FrameConversion, fluToFrd) {
-  const Eigen::Vector3f v_flu(1.f, 2.f, 3.f);
-  const Eigen::Vector3f v_frd(1.f, -2.f, -3.f);
+  Eigen::Vector3f v_flu(1.f, 2.f, 3.f);
+  Eigen::Vector3f v_frd(1.f, -2.f, -3.f);
   vectorsApproxEqualTest(v_frd, px4_ros2::fluToFrd(v_flu));
 }
 
 TEST(FrameConversion, varianceNedToEnu) {
-  const Eigen::Vector3f v_enu(1.f, 2.f, 3.f);
-  const Eigen::Vector3f v_ned(2.f, 1.f, 3.f);
+  Eigen::Vector3f v_enu(1.f, 2.f, 3.f);
+  Eigen::Vector3f v_ned(2.f, 1.f, 3.f);
   vectorsApproxEqualTest(v_ned, px4_ros2::varianceNedToEnu(v_enu));
 }
 
 TEST(FrameConversion, varianceEnuToNed) {
-  const Eigen::Vector3f v_enu(1.f, 2.f, 3.f);
-  const Eigen::Vector3f v_ned(2.f, 1.f, 3.f);
+  Eigen::Vector3f v_enu(1.f, 2.f, 3.f);
+  Eigen::Vector3f v_ned(2.f, 1.f, 3.f);
   vectorsApproxEqualTest(v_ned, px4_ros2::varianceEnuToNed(v_enu));
 }
 

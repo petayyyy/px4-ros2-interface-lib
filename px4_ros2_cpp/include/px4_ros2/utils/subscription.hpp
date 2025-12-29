@@ -6,8 +6,6 @@
 #pragma once
 
 #include <px4_ros2/common/context.hpp>
-#include <px4_ros2/common/exception.hpp>
-#include <px4_ros2/components/shared_subscription.hpp>
 
 using namespace std::chrono_literals; // NOLINT
 
@@ -19,9 +17,6 @@ namespace px4_ros2
 
 /**
  * @brief Provides a subscription to arbitrary ROS topics.
- *
- * Allows to register callbacks for new messages and keeps a copy of the latest message.
- * The underlying ROS subscription will be shared between multiple Subscription instances for the same topic.
  */
 template<typename RosMessageType>
 class Subscription
@@ -33,9 +28,9 @@ public:
   : _node(context.node())
   {
     const std::string namespaced_topic = context.topicNamespacePrefix() + topic;
-    _callback_instance = SharedSubscription<RosMessageType>::create(
-      _node, namespaced_topic,
-      [this](const typename RosMessageType::UniquePtr & msg) {
+    _subscription = _node.create_subscription<RosMessageType>(
+      namespaced_topic, rclcpp::QoS(1).best_effort(),
+      [this](const typename RosMessageType::UniquePtr msg) {
         _last = *msg;
         _last_message_time = _node.get_clock()->now();
         for (const auto & callback : _callbacks) {
@@ -63,7 +58,7 @@ public:
   const RosMessageType & last() const
   {
     if (!hasReceivedMessages()) {
-      throw Exception("No messages received.");
+      throw std::runtime_error("No messages received.");
     }
     return _last;
   }
@@ -95,7 +90,7 @@ protected:
   rclcpp::Node & _node;
 
 private:
-  SharedSubscriptionCallbackInstance _callback_instance;
+  typename rclcpp::Subscription<RosMessageType>::SharedPtr _subscription{nullptr};
 
   RosMessageType _last;
   rclcpp::Time _last_message_time;

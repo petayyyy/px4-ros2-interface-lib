@@ -6,7 +6,6 @@
 #pragma once
 
 #include <px4_ros2/common/context.hpp>
-#include <px4_ros2/common/exception.hpp>
 
 namespace px4_ros2
 {
@@ -14,11 +13,11 @@ namespace px4_ros2
 /**
  * @brief Thrown to report invalid arguments to measurement interface
 */
-class NavigationInterfaceInvalidArgument : public Exception
+class NavigationInterfaceInvalidArgument : public std::invalid_argument
 {
 public:
   explicit NavigationInterfaceInvalidArgument(const std::string & message)
-  : Exception("PX4 ROS2 navigation interface: invalid argument: " + message) {}
+  : std::invalid_argument("PX4 ROS2 navigation interface: invalid argument: " + message) {}
 };
 
 /**

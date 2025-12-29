@@ -54,7 +54,7 @@ public:
     _mode = std::make_unique<ModeT>(*this);
 
     if (!_mode->doRegister()) {
-      throw Exception("Registration failed");
+      throw std::runtime_error("Registration failed");
     }
   }
 
@@ -121,7 +121,7 @@ public:
           // *INDENT-ON*
         }, _other_modes))
     {
-      throw Exception("Registration failed");
+      throw std::runtime_error("Registration failed");
     }
   }
 
@@ -140,9 +140,9 @@ private:
   auto createModeExecutor(std::index_sequence<Idx...>)
   {
     if constexpr (sizeof...(Idx) == 0) {
-      return std::make_unique<ModeExecutorT>(*_owned_mode);
+      return std::make_unique<ModeExecutorT>(*this, *_owned_mode);
     } else {
-      return std::make_unique<ModeExecutorT>(*_owned_mode, *std::get<Idx>(_other_modes)...);
+      return std::make_unique<ModeExecutorT>(*this, *_owned_mode, *std::get<Idx>(_other_modes)...);
     }
   }
 

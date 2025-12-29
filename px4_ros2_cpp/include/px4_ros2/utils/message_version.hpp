@@ -20,7 +20,7 @@ namespace px4_ros2
 /**
  * @brief Trait to check if a message type `T` has a `MESSAGE_VERSION` constant.
  *
- * If `T` has `MESSAGE_VERSION`, \c HasMessageVersion<T>::value is `true`;
+ * If `T` has `MESSAGE_VERSION`, `HasMessageVersion<T>::value` is `true`;
  * otherwise it is `false`.
  *
  * @tparam T The message type to check.
@@ -32,18 +32,6 @@ struct HasMessageVersion : std::false_type {};
 template<typename T>
 struct HasMessageVersion<T, std::void_t<decltype(T::MESSAGE_VERSION)>>: std::true_type {};
 
-
-/**
- * @brief Checks if the current RMW (ROS Middleware) implementation is `rmw_zenoh_cpp`.
- *
- * @return `true` if the current RMW implementation is `rmw_zenoh_cpp`, `false` otherwise.
- */
-static inline bool isRmwZenoh()
-{
-  const char * rmw_id = rmw_get_implementation_identifier();
-  return std::string(rmw_id) == "rmw_zenoh_cpp";
-}
-
 /**
  * @brief Retrieves the version suffix for a given message type.
  *
@@ -53,9 +41,6 @@ static inline bool isRmwZenoh()
 template<typename T>
 std::string getMessageNameVersion()
 {
-  if (isRmwZenoh()) {
-    return "";
-  }
   if constexpr (HasMessageVersion<T>::value) {
     if (T::MESSAGE_VERSION == 0) {return "";}
     return "_v" + std::to_string(T::MESSAGE_VERSION);

@@ -37,35 +37,6 @@ Registration::Registration(rclcpp::Node & node, const std::string & topic_namesp
     1);
 
   _unregister_ext_component.mode_id = px4_ros2::ModeBase::kModeIDInvalid;
-
-  auto context = rclcpp::contexts::get_global_default_context();
-
-  if (context) {
-#if HAS_RCLCPP_PRE_SHUTDOWN
-    _shutdown_callback_handle = context->add_pre_shutdown_callback(
-      [this]() {
-        this->doUnregister();
-      });
-    _shutdown_callback_registered = true;
-#endif
-  }
-}
-
-Registration::~Registration()
-{
-  auto context = rclcpp::contexts::get_global_default_context();
-
-#if HAS_RCLCPP_PRE_SHUTDOWN
-  if (context && _shutdown_callback_registered) {
-    context->remove_pre_shutdown_callback(_shutdown_callback_handle);
-  }
-#endif
-
-  // If the context is still valid, publish the unregister message here as well
-  // so it works even when the destructor runs before rclcpp::shutdown().
-  if (context && context->is_valid()) {
-    doUnregister();
-  }
 }
 
 bool Registration::doRegister(const RegistrationSettings & settings)
@@ -94,7 +65,6 @@ bool Registration::doRegister(const RegistrationSettings & settings)
   request.enable_replace_internal_mode = settings.enable_replace_internal_mode;
   request.replace_internal_mode = settings.replace_internal_mode;
   request.activate_mode_immediately = settings.activate_mode_immediately;
-  request.not_user_selectable = !settings.user_selectable;
   request.px4_ros2_api_version = kLatestPX4ROS2ApiVersion;
 
   std::random_device rd;
@@ -198,29 +168,19 @@ bool Registration::doRegister(const RegistrationSettings & settings)
 void Registration::doUnregister()
 {
   if (_registered) {
-    auto context = _node.get_node_base_interface()->get_context();
-    const bool context_valid = context && context->is_valid();
-
-    if (context_valid) {
-      RCLCPP_DEBUG(_node.get_logger(), "Unregistering");
-      _unregister_ext_component.timestamp = 0; // Let PX4 set the timestamp
-      _unregister_ext_component_pub->publish(_unregister_ext_component);
-    }
-
+    RCLCPP_DEBUG(_node.get_logger(), "Unregistering");
+    _unregister_ext_component.timestamp = 0; // Let PX4 set the timestamp
+    _unregister_ext_component_pub->publish(_unregister_ext_component);
     _registered = false;
   }
 }
 
 void Registration::setRegistrationDetails(
   int arming_check_id, px4_ros2::ModeBase::ModeID mode_id,
-  int mode_executor_id, const std::string & name)
+  int mode_executor_id)
 {
   _unregister_ext_component.arming_check_id = arming_check_id;
   _unregister_ext_component.mode_id = mode_id;
   _unregister_ext_component.mode_executor_id = mode_executor_id;
-  strncpy(
-    reinterpret_cast<char *>(_unregister_ext_component.name.data()),
-    name.c_str(), _unregister_ext_component.name.size() - 1);
-  _unregister_ext_component.name.back() = '\0';
   _registered = true;
 }
